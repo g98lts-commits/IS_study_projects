@@ -1,0 +1,12 @@
+---
+- name: Creating backup-user on the host3
+  hosts: host3.company.vokrugsveta.local.ru
+  become: true
+  tasks:
+    - name: Creating user
+        name: backup_user
+        comment: "backup_user"
+        shell: /bin/bash
+        home: /home/backup_user
+        create_home: yes
+        password: “хеш-пароль”
