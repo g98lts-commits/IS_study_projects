@@ -1,0 +1,122 @@
+---
+- name: Show and validate hostnames
+  hosts: all
+  gather_facts: no
+  
+  vars:
+    # Шаблоны для проверки
+    arm_pattern: '^[a-zA-Z0-9]+-(linux|windows|macos)-[0-9]{3}$'
+    server_pattern: '^(prod|test|dev|dr)-[a-zA-Z0-9]+-[a-zA-Z]{3}-[0-9]{2,3}$'
+    
+    # Расшифровка сред
+    env_names:
+      prod: "продакшен"
+      test: "тестовая среда"
+      dev: "разработка"
+      dr: "аварийное восстановление"
+  
+  tasks:
+    - name: Get hostname
+      shell: hostname
+      register: hostname_result
+    
+    - name: Show just the hostname
+      debug:
+        msg: "{{ inventory_hostname }} → {{ hostname_result.stdout }}"
+    
+    - name: Validate ARM hostnames (only for group 'users')
+      when: "'users' in group_names"
+      block:
+        - name: Check if matches ARM pattern
+          set_fact:
+            is_valid_arm: "{{ hostname_result.stdout is match(arm_pattern) }}"
+        
+        - name: Extract ARM components if valid
+          when: is_valid_arm
+          set_fact:
+            arm_user: "{{ hostname_result.stdout.split('-')[0] }}"
+            arm_os: "{{ hostname_result.stdout.split('-')[1] }}"
+            arm_number: "{{ hostname_result.stdout.split('-')[2] }}"
+        
+        - name: Show success for valid ARM
+          when: is_valid_arm
+          debug:
+            msg: |
+              ✅ АРМ: {{ hostname_result.stdout }}
+              • Логин: {{ arm_user }}
+              • ОС: {{ arm_os }}
+              • Номер: {{ arm_number }}
+        
+        - name: Show error for invalid ARM
+          when: not is_valid_arm
+          debug:
+            msg: |
+              ❌ Ошибка в имени АРМ: {{ hostname_result.stdout }}
+              
+              Правильный формат для АРМ:
+              [Логин Пользователя]-[Тип ОС]-[Уникальный номер]
+              
+              Где:
+              • Логин Пользователя - набор символов (буквы, цифры)
+              • Тип ОС - только: windows, linux, macos
+              • Уникальный номер - ровно 3 цифры (001-999)
+              
+              Пример: bukreev-linux-001
+              
+              Текущее имя не соответствует. Проверьте:
+              1. Ровно 3 части через дефис
+              2. Вторая часть: linux/windows/macos
+              3. Третья часть: 3 цифры
+    
+    - name: Validate Server hostnames (for groups 'servers', 'admins', 'dmz')
+      when: "'servers' in group_names or 'admins' in group_names or 'dmz' in group_names"
+      block:
+        - name: Check if matches Server pattern
+          set_fact:
+            is_valid_server: "{{ hostname_result.stdout is match(server_pattern) }}"
+        
+        - name: Extract Server components if valid
+          when: is_valid_server
+          set_fact:
+            server_env: "{{ hostname_result.stdout.split('-')[0] }}"
+            server_role: "{{ hostname_result.stdout.split('-')[1] }}"
+            server_location: "{{ hostname_result.stdout.split('-')[2] }}"
+            server_number: "{{ hostname_result.stdout.split('-')[3] }}"
+        
+        - name: Show success for valid Server
+          when: is_valid_server
+          debug:
+            msg: |
+              ✅ Сервер: {{ hostname_result.stdout }}
+              • Среда: {{ server_env }} ({{ env_names[server_env] }})
+              • Роль: {{ server_role }}
+              • Локация: {{ server_location }}
+              • Номер: {{ server_number }}
+        
+        - name: Show error for invalid Server
+          when: not is_valid_server
+          debug:
+            msg: |
+              ❌ Ошибка в имени сервера: {{ hostname_result.stdout }}
+              
+              Правильный формат для сервера:
+              [Среда]-[Роль]-[Локация]-[Номер]
+              
+              Где:
+              • Среда - только: prod, test, dev, dr
+                - prod - продакшен
+                - test - тестовая среда  
+                - dev - разработка
+                - dr - аварийное восстановление
+              • Роль - набор символов (буквы, цифры)
+              • Локация - ровно 3 символа (например: msk, spb, nyc)
+              • Номер - ровно 3 цифры (001-999)
+              
+              Пример: prod-nginx-msk-002
+              
+              Текущее имя не соответствует. Проверьте:
+              1. Ровно 4 части через дефис
+              2. Первая часть: prod/test/dev/dr
+              3. Третья часть: ровно 3 буквы
+              4. Четвертая часть: 3 цифры
+    
