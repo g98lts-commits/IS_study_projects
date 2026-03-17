@@ -1,0 +1,31 @@
+---
+- hosts: host3.company.vokrugsveta.local.ru
+  become: yes
+  tasks:
+  - name: Set DNS server
+    copy:
+        dest: /etc/resolv.conf
+        content: |
+         nameserver 10.10.0.221
+  - name: Update apt package index
+    apt:
+        update_cache: yes
+  - name: Install package for NTP
+    apt:
+        name: chrony
+        state: present
+        update_cache: yes
+  - name: Configure NTP
+    copy:
+        dest: /etc/chrony/chrony.conf
+        content: |
+         server 10.10.0.221
+  - name: Restart service
+    service:
+        name: chrony
+        state: restarted
+  - name: Set timezone to UTC+5
+    timezone:
+        name: Asia/Yekaterinburg
+...
+
