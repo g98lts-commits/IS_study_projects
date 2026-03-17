@@ -1,0 +1,55 @@
+```yml
+- hosts: host3.company.vokrugsveta.local.ru
+ become: yes
+ tasks:
+   - name: Create backup dir at Host 3
+     file:
+       path: "/home/backup-user/backups"
+       state: directory
+       owner: backup-user
+       group: backup-user
+       mode: '0755'
+   - name: Create backup dir at Host 2
+     file:
+       path: "{{ playbook_dir }}/backups"
+       state: directory
+       owner: anscfg
+       group: anscfg
+       mode: '0755'
+     delegate_to: localhost
+     become: yes
+     become_user: root
+   - name: Get current timestamp for backup file
+     ansible.builtin.shell:
+       cmd: "date +%Y%m%d-%H%M"
+     register: current_timestamp
+   - name: Add daily cron job for backups
+     cron:
+       name: "Daily logs backup"
+       job: "tar -czf /home/backup-user/backups/backup-$(date +%Y%m%d).tar.gz /var/log/*.log 2>/dev/null"
+       user: backup-user
+       minute: "0"
+       hour: "12"
+   - name: Create backup for task
+     ansible.builtin.shell:
+       cmd: "tar -czf /home/backup-user/backups/backup-$(date +%Y%m%d-%H%M).tar.gz /var/log/*.log"
+     become: yes
+     become_user: root
+   - name: Set permissions for backup dir at Host 3
+     file:
+       path: /home/backup-user/backups
+       owner: backup-user
+       group: backup-user
+       mode: '0750'
+       recurse: yes
+     become: yes
+     become_user: root
+   - name: Copy backup to Host 2
+     ansible.builtin.fetch:
+       src: "/home/backup-user/backups/backup-{{ current_timestamp.stdout }}.tar.gz"
+       dest: "{{ playbook_dir }}/backups/"
+       flat: yes
+     become: yes
+     become_user: backup-user
+
+```
