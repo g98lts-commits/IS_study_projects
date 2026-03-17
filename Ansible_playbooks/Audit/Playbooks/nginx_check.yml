@@ -1,0 +1,49 @@
+---
+- name: Check Nginx with service_facts
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Get service facts
+      service_facts:
+
+    - name: Ensure Nginx is running
+      assert:
+        that:
+          - ansible_facts.services['nginx'] is defined
+          - ansible_facts.services['nginx'].state == "running"
+        msg: "Nginx is not running or not found!"
+
+    - name: Get Nginx-T
+      ansible.builtin.shell:
+        cmd: sudo nginx -T
+      register: nginx_config
+      when: ansible_facts.services['nginx'].state == "running"
+
+    - name: Check SSL
+      ansible.builtin.assert:
+        that:
+          - "'ssl_protocols TLSv1.0' not in nginx_config.stdout"
+          - "'ssl_protocols TLSv1.1' not in nginx_config.stdout"
+        fail_msg: "Found insecure TLS protocols (TLSv1.0 or TLSv1.1) in config"
+        success_msg: "No insecure TLS protocols found"
+      when: ansible_facts.services['nginx'].state == "running"
+      ignore_errors: yes
+
+    - name: Check ssl_session_timeout
+      ansible.builtin.assert:
+        that:
+          - "'ssl_session_timeout 10m' in nginx_config.stdout"
+        fail_msg: "Found incorrect timeouts in config"
+        success_msg: "No incorrect timeouts found"
+      when: ansible_facts.services['nginx'].state == "running"
+      ignore_errors: yes
+    
+    - name: Check server_tokens
+      ansible.builtin.assert:
+        that:
+          - "'server_tokens off;' in nginx_config.stdout"
+        fail_msg: "server_tokens is ON in config"
+        success_msg: "server_tokens OFF found"
+      when: ansible_facts.services['nginx'].state == "running"
+      ignore_errors: yes
