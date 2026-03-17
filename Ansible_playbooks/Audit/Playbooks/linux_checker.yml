@@ -1,0 +1,100 @@
+---
+- name: Check Password Policy in /etc/login.defs
+  hosts: all
+  become: yes
+
+  tasks:
+    # Проверка существования файла /etc/login.defs
+    - name: Check if /etc/login.defs exists
+      ansible.builtin.stat:
+        path: /etc/login.defs
+      register: login_defs_stat
+
+    # Чтение содержимого файла с помощью command (более безопасно чем shell)
+    - name: Read /etc/login.defs file using command
+      ansible.builtin.command:
+        cmd: cat /etc/login.defs
+      register: login_defs
+      when: login_defs_stat.stat.exists
+      ignore_errors: yes
+
+    # Проверки параметров парольной политики
+    - name: Check PASS_MAX_DAYS
+      ansible.builtin.assert:
+        that:
+          - login_defs.stdout is defined
+          - "'PASS_MAX_DAYS 365' in login_defs.stdout"
+        fail_msg: "FAIL: PASS_MAX_DAYS is not set to 365 in /etc/login.defs"
+        success_msg: "OK: PASS_MAX_DAYS is set to 365"
+      when: login_defs.stdout is defined and not login_defs.failed
+      ignore_errors: yes
+
+    - name: Check PASS_MIN_DAYS
+      ansible.builtin.assert:
+        that:
+          - login_defs.stdout is defined
+          - "'PASS_MIN_DAYS	0' in login_defs.stdout"
+        fail_msg: "FAIL: PASS_MIN_DAYS is not set to 0 in /etc/login.defs"
+        success_msg: "OK: PASS_MIN_DAYS is set to 0"
+      when: login_defs.stdout is defined and not login_defs.failed
+      ignore_errors: yes
+
+    - name: Check PASS_MIN_LEN
+      ansible.builtin.assert:
+        that:
+          - login_defs.stdout is defined
+          - "'PASS_MIN_LEN 17' in login_defs.stdout"
+        fail_msg: "FAIL: PASS_MIN_LEN is not set to 17 in /etc/login.defs"
+        success_msg: "OK: PASS_MIN_LEN is set to 17"
+      when: login_defs.stdout is defined and not login_defs.failed
+      ignore_errors: yes
+
+    - name: Check PASS_WARN_AGE
+      ansible.builtin.assert:
+        that:
+          - login_defs.stdout is defined
+          - "'PASS_WARN_AGE 14' in login_defs.stdout"
+        fail_msg: "FAIL: PASS_WARN_AGE is not set to 14 in /etc/login.defs"
+        success_msg: "OK: PASS_WARN_AGE is set to 14"
+      when: login_defs.stdout is defined and not login_defs.failed
+      ignore_errors: yes
+
+    - name: Check LOG_UNKFAIL_ENAB
+      ansible.builtin.assert:
+        that:
+          - login_defs.stdout is defined
+          - "'LOG_UNKFAIL_ENAB yes' in login_defs.stdout"
+        fail_msg: "FAIL: LOG_UNKFAIL_ENAB is not set to yes in /etc/login.defs"
+        success_msg: "OK: LOG_UNKFAIL_ENAB is set to yes"
+      when: login_defs.stdout is defined and not login_defs.failed
+      ignore_errors: yes
+
+    - name: Check FAILLOG_ENAB
+      ansible.builtin.assert:
+        that:
+          - login_defs.stdout is defined
+          - "'FAILLOG_ENAB		yes' in login_defs.stdout"
+        fail_msg: "FAIL: FAILLOG_ENAB is not set to yes in /etc/login.defs"
+        success_msg: "OK: FAILLOG_ENAB is set to yes"
+      when: login_defs.stdout is defined and not login_defs.failed
+      ignore_errors: yes
+
+    - name: Check LOG_OK_LOGINS
+      ansible.builtin.assert:
+        that:
+          - login_defs.stdout is defined
+          - "'LOG_OK_LOGINS yes' in login_defs.stdout"
+        fail_msg: "FAIL: LOG_OK_LOGINS is not set to yes in /etc/login.defs"
+        success_msg: "OK: LOG_OK_LOGINS is set to yes"
+      when: login_defs.stdout is defined and not login_defs.failed
+      ignore_errors: yes
+
+    - name: Check ENCRYPT_METHOD
+      ansible.builtin.assert:
+        that:
+          - login_defs.stdout is defined
+          - "'ENCRYPT_METHOD SHA512' in login_defs.stdout"
+        fail_msg: "FAIL: ENCRYPT_METHOD is not set to SHA512 in /etc/login.defs"
+        success_msg: "OK: ENCRYPT_METHOD is set to SHA512"
+      when: login_defs.stdout is defined and not login_defs.failed
+      ignore_errors: yes
