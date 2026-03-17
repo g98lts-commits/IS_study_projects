@@ -1,0 +1,63 @@
+---
+- name: Install and configure ClamAV antivirus
+  hosts: ws_msk_000019, srv_fs
+  become: yes
+  tasks:
+    - name: Update package cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install ClamAV and freshclam
+      apt:
+        name:
+          - clamav
+          - clamav-daemon
+          - clamav-freshclam
+        state: present
+
+    - name: Stop clamav-daemon and freshclam services for configuration
+      systemd:
+        name: "{{ item }}"
+        state: stopped
+      loop:
+        - clamav-daemon
+        - freshclam
+
+    - name: Configure freshclam (update service)
+      template:
+        src: templates/freshclam.conf.j2
+        dest: /etc/clamav/freshclam.conf
+        mode: '0644'
+
+    - name: Configure clamd (daemon service)
+      template:
+        src: templates/clamd.conf.j2
+        dest: /etc/clamav/clamd.conf
+        mode: '0644'
+
+    - name: Update virus definitions
+      command: freshclam
+      args:
+        warn: true
+
+    - name: Start clamav-daemon and enable on boot
+      systemd:
+        name: clamav-daemon
+        state: started
+        enabled: yes
+
+    - name: Start freshclam and enable on boot
+      systemd:
+        name: freshclam
+        state: started
+        enabled: yes
+
+    - name: Create daily cron job for full system scan
+      cron:
+        name: "Daily ClamAV full scan"
+        minute: "0"
+        hour: "2"
+        job: "/usr/local/bin/clamav_full_scan.sh"
+        user: root
+Примечание: для работы шаблона потребуются файлы шаблонов templates/freshclam.conf.j2 и templates/clamd.conf.j2.
